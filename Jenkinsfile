@@ -2,6 +2,9 @@ def repo = "saved-searches"
 def dockerUser = "discoenv"
 
 node {
+    stage "ENV VARS YAY"
+    sh("env | sort")
+    
     stage "Build"
     git url: "https://github.com/cyverse-de/${repo}"
 
