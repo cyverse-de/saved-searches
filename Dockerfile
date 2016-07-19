@@ -1,6 +1,10 @@
-FROM jeanblanchard/alpine-glibc
+FROM golang:1.6-alpine
+
 ARG git_commit=unknown
-ARG buildenv_git_commit=unknown
-ARG version=unknown
-COPY saved-searches /bin/saved-searches
-CMD ["saved-searches" "--help"]
+LABEL org.cyverse.git-ref="$git_commit"
+
+COPY . /go/src/github.com/cyverse-de/saved-searches
+RUN go install github.com/cyverse-de/saved-searches
+
+ENTRYPOINT ["saved-searches"]
+CMD ["--help"]
