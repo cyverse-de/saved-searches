@@ -2,7 +2,7 @@ def repo = "saved-searches"
 def dockerUser = "discoenv"
 
 node {
-    stage "build"
+    stage "Build"
     git url: "https://github.com/cyverse-de/${repo}"
 
     sh 'git rev-parse HEAD > GIT_COMMIT'
@@ -18,10 +18,10 @@ node {
     sh "docker build --rm --build-arg git_commit=${git_commit} -t ${dockerRepo} ."
 
 
-    stage "test"
+    stage "Test"
     sh "docker run --rm --entrypoint 'go' ${dockerRepo} test github.com/cyverse-de/${repo}"
 
 
-    stage "push"
+    stage "Docker Push"
     sh "docker push ${dockerRepo}"
 }
