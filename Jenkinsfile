@@ -2,11 +2,8 @@ def repo = "saved-searches"
 def dockerUser = "discoenv"
 
 node {
-    stage "ENV VARS YAY"
-    sh("env | sort")
-    
     stage "Build"
-    git url: "https://github.com/cyverse-de/${repo}"
+    checkout scm
 
     sh 'git rev-parse HEAD > GIT_COMMIT'
     git_commit = readFile('GIT_COMMIT').trim()
