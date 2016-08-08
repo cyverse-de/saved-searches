@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	_ "expvar"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -202,6 +203,7 @@ func New(db Databaser) *SavedSearches {
 	router.HandleFunc("/{username}", s.Post).Methods("PUT")
 	router.HandleFunc("/{username}", s.Post).Methods("POST")
 	router.HandleFunc("/{username}", s.Delete).Methods("DELETE")
+	router.Handle("/debug/vars", http.DefaultServeMux)
 	return s
 }
 
