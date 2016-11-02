@@ -9,6 +9,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	sqlmock "github.com/DATA-DOG/go-sqlmock"
 )
 
 type MockDB struct {
@@ -82,6 +84,28 @@ func TestBadRequest(t *testing.T) {
 
 	if actualMsg != expectedMsg {
 		t.Errorf("Message was '%s', but should have been '%s'", actualMsg, expectedMsg)
+	}
+}
+
+func TestHandleNonUser(t *testing.T) {
+	expectedStruct := &map[string]string{
+		"user": "test-user",
+	}
+	expectedStatus := http.StatusNotFound
+	recorder := httptest.NewRecorder()
+	handleNonUser(recorder, "test-user")
+	actualStruct := &map[string]string{}
+	if err := json.Unmarshal(recorder.Body.Bytes(), actualStruct); err != nil {
+		t.Errorf("error unmarshalling body: %s", err)
+	}
+	actualStatus := recorder.Code
+
+	if actualStatus != expectedStatus {
+		t.Errorf("request status code was %d instead of %d", actualStatus, expectedStatus)
+	}
+
+	if !reflect.DeepEqual(actualStruct, expectedStruct) {
+		t.Errorf("body was %#v instead of %#v", actualStruct, expectedStruct)
 	}
 }
 
@@ -492,5 +516,179 @@ func TestFixAddrWithPrefix(t *testing.T) {
 	actual := fixAddr(":70000")
 	if actual != expected {
 		t.Fail()
+	}
+}
+
+func TestNewPostgresDBB(t *testing.T) {
+	db, _, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error creating the mock db: %s", err)
+	}
+	defer db.Close()
+
+	p := NewPostgresDB(db)
+	if p == nil {
+		t.Error("NewPostgresDB returned nil")
+	}
+
+	if p.db != db {
+		t.Error("dbs did not match")
+	}
+}
+
+func TestIsUser(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error creating the mock db: %s", err)
+	}
+	defer db.Close()
+
+	p := NewPostgresDB(db)
+	if p == nil {
+		t.Error("NewPostgresDB returned nil")
+	}
+
+	mock.ExpectQuery("SELECT COUNT\\(\\*\\) FROM \\( SELECT DISTINCT id FROM users").
+		WithArgs("test-user").
+		WillReturnRows(sqlmock.NewRows([]string{"check_user"}).AddRow(1))
+
+	present, err := p.isUser("test-user")
+	if err != nil {
+		t.Errorf("error calling isUser(): %s", err)
+	}
+
+	if !present {
+		t.Error("test-user was not found")
+	}
+}
+
+func TestHasSavedSearches(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error creating the mock db: %s", err)
+	}
+	defer db.Close()
+
+	p := NewPostgresDB(db)
+	if p == nil {
+		t.Error("NewPostgresDB returned nil")
+	}
+
+	mock.ExpectQuery("SELECT EXISTS\\( SELECT 1 FROM user_saved_searches s").
+		WithArgs("test-user").
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(true))
+
+	exists, err := p.hasSavedSearches("test-user")
+	if err != nil {
+		t.Errorf("error from hasSavedSearches(): %s", err)
+	}
+
+	if !exists {
+		t.Error("hasSavedSearches() returned false")
+	}
+}
+
+func TestGetSavedSearches(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error creating the mock db: %s", err)
+	}
+	defer db.Close()
+
+	p := NewPostgresDB(db)
+	if p == nil {
+		t.Error("NewPostgresDB returned nil")
+	}
+
+	mock.ExpectQuery("SELECT s.saved_searches saved_searches FROM user_saved_searches s,").
+		WithArgs("test-user").
+		WillReturnRows(sqlmock.NewRows([]string{"saved_searches"}).AddRow("{}"))
+
+	retval, err := p.getSavedSearches("test-user")
+	if err != nil {
+		t.Errorf("error from getSavedSearches(): %s", err)
+	}
+
+	if len(retval) != 1 {
+		t.Errorf("length of retval was not 1: %d", len(retval))
+	}
+
+	if retval[0] != "{}" {
+		t.Errorf("retval was %s instead of {}", retval)
+	}
+}
+
+func TestInsertSavedSearches(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error creating the mock db: %s", err)
+	}
+	defer db.Close()
+
+	p := NewPostgresDB(db)
+	if p == nil {
+		t.Error("NewPostgresDB returned nil")
+	}
+
+	mock.ExpectQuery("SELECT id FROM users WHERE username =").
+		WithArgs("test-user").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow("1"))
+
+	mock.ExpectExec("INSERT INTO user_saved_searches \\(user_id").
+		WithArgs("1", "{}").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	if err := p.insertSavedSearches("test-user", "{}"); err != nil {
+		t.Errorf("error inserting saved searches: %s", err)
+	}
+}
+
+func TestUpdateSavedSearches(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error creating the mock db: %s", err)
+	}
+	defer db.Close()
+
+	p := NewPostgresDB(db)
+	if p == nil {
+		t.Error("NewPostgresDB returned nil")
+	}
+
+	mock.ExpectQuery("SELECT id FROM users WHERE username =").
+		WithArgs("test-user").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow("1"))
+
+	mock.ExpectExec("UPDATE ONLY user_saved_searches SET saved_searches =").
+		WithArgs("1", "{}").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	if err := p.updateSavedSearches("test-user", "{}"); err != nil {
+		t.Errorf("error updating saved searches: %s", err)
+	}
+}
+
+func TestDeleteSavedSearches(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	if err != nil {
+		t.Fatalf("error creating the mock db: %s", err)
+	}
+	defer db.Close()
+
+	p := NewPostgresDB(db)
+	if p == nil {
+		t.Error("NewPostgresDB returned nil")
+	}
+
+	mock.ExpectQuery("SELECT id FROM users WHERE username =").
+		WithArgs("test-user").
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow("1"))
+
+	mock.ExpectExec("DELETE FROM ONLY user_saved_searches WHERE user_id").
+		WithArgs("1").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+
+	if err := p.deleteSavedSearches("test-user"); err != nil {
+		t.Errorf("error deleting saved searches: %s", err)
 	}
 }
