@@ -586,6 +586,10 @@ func TestHasSavedSearches(t *testing.T) {
 	if !exists {
 		t.Error("hasSavedSearches() returned false")
 	}
+
+	if err = mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("expectations were not met: %s", err)
+	}
 }
 
 func TestGetSavedSearches(t *testing.T) {
@@ -607,6 +611,10 @@ func TestGetSavedSearches(t *testing.T) {
 	retval, err := p.getSavedSearches("test-user")
 	if err != nil {
 		t.Errorf("error from getSavedSearches(): %s", err)
+	}
+
+	if err = mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("expectations were not met: %s", err)
 	}
 
 	if len(retval) != 1 {
@@ -641,6 +649,10 @@ func TestInsertSavedSearches(t *testing.T) {
 	if err := p.insertSavedSearches("test-user", "{}"); err != nil {
 		t.Errorf("error inserting saved searches: %s", err)
 	}
+
+	if err = mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("expectations were not met: %s", err)
+	}
 }
 
 func TestUpdateSavedSearches(t *testing.T) {
@@ -666,6 +678,10 @@ func TestUpdateSavedSearches(t *testing.T) {
 	if err := p.updateSavedSearches("test-user", "{}"); err != nil {
 		t.Errorf("error updating saved searches: %s", err)
 	}
+
+	if err = mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("expectations were not met: %s", err)
+	}
 }
 
 func TestDeleteSavedSearches(t *testing.T) {
@@ -690,5 +706,9 @@ func TestDeleteSavedSearches(t *testing.T) {
 
 	if err := p.deleteSavedSearches("test-user"); err != nil {
 		t.Errorf("error deleting saved searches: %s", err)
+	}
+
+	if err = mock.ExpectationsWereMet(); err != nil {
+		t.Errorf("expectations were not met: %s", err)
 	}
 }
