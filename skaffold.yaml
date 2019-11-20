@@ -1,0 +1,14 @@
+apiVersion: skaffold/v1
+kind: Config
+metadata:
+  name: saved-searches
+deploy:
+  kubectl:
+    manifests:
+    - k8s/saved-searches.yml
+build:
+  tagPolicy:
+    gitCommit: {}
+  artifacts:
+  - image: discoenv/saved-searches
+  local: {}
